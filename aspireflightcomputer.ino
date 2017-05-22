@@ -33,42 +33,32 @@ void loop() {
 
     fram.begin();
 
-    Serial.print("write");
-
+    Serial.print("Reading Sensors and writing to FRAM");
 
     // Accelerometer Readings.
     int x,y,z;   
 
-    x = 9;
-    y = 10;
-    z = 11;
-
     // Loop around all memory locations.
     for (uint16_t i = 0; i < 32768; i+=3) {
-      
+
+      // Read the AXDL values for x,y,z
       adxl.readAccel(&x, &y, &z);
 
-      /*Serial.print("Memory Location Write: ");
-      Serial.print(i);
-      Serial.print("\n\n");
-      Serial.print("Value:");
-      Serial.print(x);
-      Serial.print("\n\n");*/
+      // Write to the memory
       fram.write8(i, x);
       fram.write8(i+1, y);
       fram.write8(i+2, z);
 
-      Serial.print(x);
-      Serial.print(", ");
-      Serial.print(y);
-      Serial.print(", ");
-      Serial.println(z);
+      // TODO - We need to calculate the correct timing of the AXDL345 
+      // How quick does it take to read from the I2C bus?
+      // We need to try and take 200/sec
+      // How fast does each command take? how quick is the readAccel reading?
       
     }
 
   } else {
 
-     fram.begin();
+    fram.begin();
     
     // Dump FRAM here to the serial port.
     for (uint16_t a = 0; a < 32768; a++) {
@@ -82,8 +72,10 @@ void loop() {
       Serial.print(value);
       Serial.print("\n\n");
     }
-    // Stop running until Ardiuno is reset.
-    exit(0);
+
   }
+
+  // Stop running until Ardiuno is reset.
+  exit(0);
 
 }
