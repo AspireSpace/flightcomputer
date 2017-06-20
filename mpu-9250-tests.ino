@@ -98,23 +98,6 @@ void loop() {
     while (ii < FRAM_CAPACITY_TO_USE)
     {
       
-      /*Serial.print("Int pin status: ");
-      if (digitalRead(MPU_9250_int_pin))
-      {
-        Serial.print("high. "); 
-      } else {
-        Serial.print("low. ");
-      }
-      Serial.print("Sample status: ");
-      if (MPU_9250_sample_ready)
-      {
-        Serial.print("ready. "); 
-      } else {
-        Serial.print("unready. ");
-      }      
-      Serial.print("ii = ");
-      Serial.println(ii);*/
-      
       if(MPU_9250_sample_ready)
       {       
         digitalWrite(13, HIGH);
@@ -145,61 +128,27 @@ void loop() {
         MPU_9250_sample_timestamp_to_write = MPU_9250_sample_timestamp;
         interrupts();
         
+        // Write the samples to FRAM 
         fram_write_int16_t_arr(testIMU.accelCount, 3, ii);
-        
-        /*fram.write8(ii,  highbyte(testIMU.accelCount[0]));
-        fram.write8(ii+1,lowbyte(testIMU.accelCount[0]);
-        fram.write8(ii+2,highbyte(testIMU.accelCount[1]));
-        fram.write8(ii+3,lowbyte(testIMU.accelCount[1]));
-        fram.write8(ii+4,highbyte(testIMU.accelCount[2]));
-        fram.write8(ii+5,lowbyte(testIMU.accelCount[2]));*/
-
         ii+=6;
-
         fram_write_int16_t_arr(testIMU.gyroCount, 3, ii);
-        
-        /*fram.write8(ii,  testIMU.gyroCount[0] >> 8);
-        fram.write8(ii+1,testIMU.gyroCount[0]);
-        fram.write8(ii+2,testIMU.gyroCount[1] >> 8);
-        fram.write8(ii+3,testIMU.gyroCount[1]);
-        fram.write8(ii+4,testIMU.gyroCount[2] >> 8);
-        fram.write8(ii+5,testIMU.gyroCount[2]);*/
-
         ii+=6;
-
         fram_write_int16_t_arr(testIMU.magCount, 3, ii);
-
-        /*fram.write8(ii,  testIMU.magCount[0] >> 8);
-        fram.write8(ii+1,testIMU.magCount[0]);
-        fram.write8(ii+2,testIMU.magCount[1] >> 8);
-        fram.write8(ii+3,testIMU.magCount[1]);
-        fram.write8(ii+4,testIMU.magCount[2] >> 8);
-        fram.write8(ii+5,testIMU.magCount[2]);*/
-
         ii+=6;
 
-        /*Serial.print("Timestamp is ");
-        Serial.print(MPU_9250_sample_timestamp_to_write);
-        Serial.print(" (");*/
-        
-        
-        
+        //  Also write timestamp to FRAM
         for (uint16_t jj=0; jj<4; jj++)
         {
-           //Serial.print(((MPU_9250_sample_timestamp_to_write >> 8*(3-jj)) & 0x000000FFUL));
-           //Serial.print(", ");
-           
            fram.write8(ii+jj, (uint8_t) ((MPU_9250_sample_timestamp_to_write >> 8*(3-jj)) & 0x000000FFUL));
-        }
-        //Serial.println(")");
-       
+        }       
         ii+=4;
        
+        // 200 Hz is far too fast to see, so it'll just look like the LED is on when samples are being read
         digitalWrite(13, LOW); 
       }
     }
 
-    Serial.println("Filled memory, starting again?");
+    Serial.println("Filled FRAM, starting again?");
   } else {    
     uint16_t ii = FRAM_RESERVED_BYTES - 1;
     
