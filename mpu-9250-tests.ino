@@ -23,7 +23,7 @@ const uint8_t SWITCH_PIN = 7;
 // define FRAM-related stuff
 Adafruit_FRAM_I2C fram     = Adafruit_FRAM_I2C();
 
-const uint16_t FRAM_CAPACITY_TO_USE = 126;
+const uint16_t FRAM_CAPACITY_TO_USE = 1116;
 const uint16_t FRAM_RESERVED_BYTES = 16; // could be handy I guess?
 
 // define IMU-related stuff
@@ -41,9 +41,11 @@ int16_t fram_read_int16_t(uint16_t start_address);
 void mark_MPU9250_sample_ready(void);
 
 void setup() {
-  // Set the serial baud rate to 9600
-  Wire.begin();
+  // Set the serial baud rate to 38400
   Serial.begin(38400);     
+
+  Wire.begin();
+  TWBR = 12;
 
   // set up interfaces
   pinMode(SWITCH_PIN, OUTPUT);
@@ -101,9 +103,6 @@ void loop() {
       if(MPU_9250_sample_ready)
       {       
         digitalWrite(13, HIGH);
-        
-        Serial.print("Sample ready at t=");
-        Serial.println(MPU_9250_sample_timestamp_to_write);
 
         // these are 3×16-bit arrays. 22 bytes per sample. 
         testIMU.readAccelData(testIMU.accelCount);
@@ -148,13 +147,16 @@ void loop() {
       }
     }
 
-    Serial.println("Filled FRAM, starting again?");
-  } else {    
+    Serial.println("Filled FRAM, starting again");
+  } else {
+        
     uint16_t ii = FRAM_RESERVED_BYTES - 1;
     
     int16_t value;
     unsigned long timestamp;
     
+    Serial.println("ax, ay, az, gx, gy, gz, mx, my, mz, t");
+
     // Dump FRAM here to the serial port.
     while (ii < FRAM_CAPACITY_TO_USE + FRAM_RESERVED_BYTES) {
       timestamp = 0;
@@ -170,8 +172,9 @@ void loop() {
      } */
       
       //RAW SAMPLE DUMP MODE - somewhat more readable. Not in any physical units.
-      Serial.print("New sample! ii = ");
-      Serial.println(ii);
+      
+      //Serial.print("New sample! ii = ");
+      //Serial.println(ii);
       for (uint16_t jj = 0; jj<9; jj++)
       {
         // bunch of magic numbers here, not great.
@@ -179,19 +182,14 @@ void loop() {
         Serial.print(value);
         Serial.print(", ");
       }
-      Serial.print("t = ");
       
       ii+=18;
       
-      Serial.print("(");
       for (uint16_t jj = 0; jj<4; jj++)
       {
         timestamp = timestamp << 8;
-        Serial.print(fram.read8(ii+jj));
-        Serial.print(", ");
         timestamp |= (unsigned long) (fram.read8(ii+jj));        
       }
-      Serial.print(") ");
       Serial.println(timestamp);
       
       ii+=4;
