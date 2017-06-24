@@ -23,13 +23,13 @@ const uint8_t SWITCH_PIN = 7;
 // define FRAM-related stuff
 Adafruit_FRAM_I2C fram     = Adafruit_FRAM_I2C();
 
-const uint16_t FRAM_CAPACITY_TO_USE = 1116;
+const uint16_t FRAM_CAPACITY_TO_USE = 8816; // enough for two seconds of samples
 const uint16_t FRAM_RESERVED_BYTES = 16; // could be handy I guess?
 
 // define IMU-related stuff
 MPU9250 testIMU;
 const int MPU_9250_int_pin = 2;
-volatile bool MPU_9250_sample_ready = true;
+volatile bool MPU_9250_sample_ready = false;
 
 volatile unsigned long MPU_9250_sample_timestamp = micros();
 unsigned long MPU_9250_sample_timestamp_to_write; // I feel like there should be a more elegant way of doing this robustly
@@ -45,7 +45,7 @@ void setup() {
   Serial.begin(38400);     
 
   Wire.begin();
-  TWBR = 12;
+  Wire.setClock(400000L);
 
   // set up interfaces
   pinMode(SWITCH_PIN, OUTPUT);
@@ -92,10 +92,13 @@ void loop() {
   
    // If button high then log if not dump.
   if(buttonState) {
+    
+    // Need to start by clearing the MPU-9250 interrupt register - a sample will almost certainly be ready already.
+    testIMU.readByte(MPU9250_ADDRESS, INT_STATUS); 
+    
     Serial.println("Reading Sensors and writing to FRAM");
 
-    // Loop around all memory locations.
-    
+    // Loop around all allowed memory locations once, writing samples.    
     uint16_t ii = FRAM_RESERVED_BYTES-1;
     while (ii < FRAM_CAPACITY_TO_USE)
     {
@@ -125,6 +128,10 @@ void loop() {
         noInterrupts(); 
         MPU_9250_sample_ready = false;
         MPU_9250_sample_timestamp_to_write = MPU_9250_sample_timestamp;
+        
+        /** lines of code used only for testing duration (i.e. when not using the interrupt) **/
+        //MPU_9250_sample_ready = true;
+        //MPU_9250_sample_timestamp_to_write = micros();
         interrupts();
         
         // Write the samples to FRAM 
@@ -136,10 +143,12 @@ void loop() {
         ii+=6;
 
         //  Also write timestamp to FRAM
+        fram.write8_begin(ii);
         for (uint16_t jj=0; jj<4; jj++)
         {
-           fram.write8(ii+jj, (uint8_t) ((MPU_9250_sample_timestamp_to_write >> 8*(3-jj)) & 0x000000FFUL));
-        }       
+          fram.write8_enqueue(static_cast<uint8_t>((MPU_9250_sample_timestamp_to_write >> 8*(3-jj)) & 0x000000FFUL));
+        }
+        fram.write8_end();       
         ii+=4;
        
         // 200 Hz is far too fast to see, so it'll just look like the LED is on when samples are being read
@@ -194,7 +203,9 @@ void loop() {
       
       ii+=4;
     }
-
+    
+    Serial.println('All data dumped, exiting.');
+    delay(100);
     // Stop running until Arduino is reset.
     exit(0);
   }
@@ -206,11 +217,13 @@ void mark_MPU9250_sample_ready(void) {
 }
 
 void fram_write_int16_t_arr(int16_t vals[], int count, uint16_t start_address) {
+  fram.write8_begin(start_address);
   for (int ii=0; ii<count; ii++)
   {
-    fram.write8(start_address+2*ii, highByte(vals[ii]));        
-    fram.write8(start_address+2*ii+1, lowByte(vals[ii]));
+    fram.write8_enqueue(highByte(vals[ii]));        
+    fram.write8_enqueue(lowByte(vals[ii]));
   }
+  fram.write8_end();
 }
 
 int16_t fram_read_int16_t(uint16_t start_address) {
