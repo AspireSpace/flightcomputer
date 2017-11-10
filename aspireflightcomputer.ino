@@ -108,7 +108,7 @@ void loop() {
       // Read altitude at this point.
       alitiude = sensor_read_data();
 
-      // Convert to Int to store in memory. 
+      // Convert to Int to store in memory. TODO - Need to fix the decimal part into an int.
       float f = alitiude;
       int d = (f*100);
 
